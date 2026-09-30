@@ -47,9 +47,18 @@ export default function Home() {
     }
   }
 
-  function runScan() {
+  async function runScan() {
     setIsScanning(true);
-    window.setTimeout(() => setIsScanning(false), 1800);
+    try {
+      const result = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "Run a quality scan and report the evidence", check: "lint" }) });
+      const data = await result.json() as { summary?: string; evidence?: string[]; error?: string };
+      const response = data.error ?? `${data.summary ?? "Quality scan complete."}\n\nEvidence: ${data.evidence?.join(" · ") ?? "No evidence returned."}`;
+      setMessages((current) => [...current, { role: "agent", content: response, time: "now" }]);
+    } catch {
+      setMessages((current) => [...current, { role: "agent", content: "The quality scan could not reach the local agent endpoint.", time: "now" }]);
+    } finally {
+      setIsScanning(false);
+    }
   }
 
   async function approveChange() {
