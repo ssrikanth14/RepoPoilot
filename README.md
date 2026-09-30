@@ -5,7 +5,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
  # RepoPilot
  
- RepoPilot is a local-project AI coding assistant built with Next.js, TypeScript, and the App Router. It indexes a workspace, explains source files, runs declared checks, proposes changes, applies only explicitly approved mutations, and supports Git/GitHub workflows.
+RepoPilot is a focused project feedback tool built with Next.js, TypeScript, and the App Router. Upload a ZIP, receive a code-quality report with bugs and improvement ideas, then publish the project to GitHub when it is ready.
  
  ## Run locally
  
@@ -15,9 +15,9 @@ First, run the development server:
  npm run dev
  ```
  
- Open `http://localhost:3000`. Port `3001` is used automatically when `3000` is busy.
+Open `http://localhost:3000`. Port `3001` is used automatically when `3000` is busy.
  
- The app works without credentials using its local planner and project tools. Add `OPENAI_API_KEY` to enable model reasoning. Add `GITHUB_TOKEN`, `GITHUB_OWNER`, and `GITHUB_REPOSITORY` to enable repository creation and pull requests.
+The app works without credentials using its local analyzer. Add `GITHUB_TOKEN` and `GITHUB_OWNER` to enable publishing uploaded projects. Add `OPENAI_API_KEY` only if you want optional model reasoning in the legacy agent route.
  
  ## Validation
  
@@ -33,12 +33,11 @@ First, run the development server:
  
  | Route | Purpose |
  | --- | --- |
- | `POST /api/agent` | Inspect the workspace, inspect Git, run lint/build/test, and optionally ask a model for reasoning. |
- | `GET /api/project` | Return an indexed, source-focused workspace tree. |
- | `POST /api/project` | Read one workspace file through a path-checked request. |
- | `POST /api/changes` | Apply a file change only with explicit approval headers. |
- | `POST /api/git` | Read status/diff or perform approved commit and push operations. |
- | `POST /api/github` | Perform approved repository creation and pull-request operations. |
+| `POST /api/upload` | Safely extract a ZIP project into the local workspace. |
+| `POST /api/analyze` | Review source files, run an available check, and return findings and improvements. |
+| `POST /api/publish` | Create a GitHub repository, commit the uploaded project, and push `main`. |
+
+The lower-level `/api/agent`, `/api/project`, `/api/changes`, `/api/git`, and `/api/github` routes remain available for advanced integrations.
  
  ## Safety boundaries
  
