@@ -21,17 +21,29 @@ async function collectFiles(directory: string, relativeDirectory = "", result: s
   return result;
 }
 
+async function findProjectRoot(directory: string, depth = 0): Promise<string> {
+  try {
+    await readFile(path.join(directory, "package.json"), "utf8");
+    return directory;
+  } catch {
+    if (depth >= 3) return directory;
+    const directories = (await readdir(directory, { withFileTypes: true })).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !["node_modules", ".next"].includes(entry.name));
+    if (directories.length === 1) return findProjectRoot(path.join(directory, directories[0].name), depth + 1);
+    return directory;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { projectId } = await request.json() as { projectId?: string };
     if (!projectId) return NextResponse.json({ error: "Project id is required" }, { status: 400 });
-    const root = projectDirectory(projectId);
+    const root = await findProjectRoot(projectDirectory(projectId));
     const files = await collectFiles(root);
     const findings: Finding[] = [];
     let todoCount = 0;
     let consoleCount = 0;
     for (const file of files) {
-      const content = await readFile(path.join(root, file), "utf8");
+      const content = await readFile(/*turbopackIgnore: true*/ path.join(root, file), "utf8");
       todoCount += (content.match(/TODO|FIXME/g) ?? []).length;
       consoleCount += (content.match(/console\.log\(/g) ?? []).length;
     }

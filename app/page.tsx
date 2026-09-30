@@ -11,6 +11,7 @@ export default function Home() {
   const [projectName, setProjectName] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [repositoryName, setRepositoryName] = useState("");
+  const [repositoryUrl, setRepositoryUrl] = useState("");
   const [message, setMessage] = useState("Upload a ZIP file to begin.");
   const [busy, setBusy] = useState(false);
 
@@ -46,11 +47,11 @@ export default function Home() {
   }
 
   async function publishProject() {
-    if (!projectId || !repositoryName.trim()) return;
+    if (!projectId || (!repositoryName.trim() && !repositoryUrl.trim())) return;
     setBusy(true);
     setMessage("Creating the GitHub repository and pushing your project…");
     try {
-      const result = await fetch("/api/publish", { method: "POST", headers: { "Content-Type": "application/json", "x-repopilot-approval": "approved" }, body: JSON.stringify({ projectId, repositoryName, approved: true }) });
+      const result = await fetch("/api/publish", { method: "POST", headers: { "Content-Type": "application/json", "x-repopilot-approval": "approved" }, body: JSON.stringify({ projectId, repositoryName, repositoryUrl, approved: true }) });
       const data = await result.json() as { url?: string; error?: string };
       if (!result.ok) throw new Error(data.error ?? "Publish failed");
       setMessage(`Published successfully: ${data.url}`);
@@ -69,7 +70,7 @@ export default function Home() {
       <section className="workspace-card">
         <div className="upload-area"><input id="project-file" type="file" accept=".zip,application/zip" onChange={chooseFile} /><label htmlFor="project-file"><span className="upload-icon">↑</span><strong>{file ? file.name : "Choose your project ZIP"}</strong><small>{file ? `${(file.size / 1024 / 1024).toFixed(1)} MB selected` : "Maximum 25 MB"}</small></label><button className="primary-button" type="button" disabled={!file || busy} onClick={uploadAndAnalyze}>{busy ? "Working…" : analysis ? "Analyze again" : "Analyze project"}<span>→</span></button></div>
         {analysis && <div className="feedback"><div className="feedback-header"><div><p className="eyebrow">FEEDBACK FOR {projectName.toUpperCase()}</p><h2>Your project report</h2></div><div className="score"><strong>{analysis.score}</strong><span>/100</span></div></div><div className="report-meta"><span>{analysis.files} source files reviewed</span><span className={analysis.check.includes("failed") ? "bad" : "good"}>{analysis.check}</span></div><div className="feedback-grid"><div><h3>Problems to review</h3>{analysis.findings.length ? analysis.findings.map((finding) => <article className="finding" key={finding.title}><span className={`severity ${finding.severity}`} /> <div><strong>{finding.title}</strong><p>{finding.detail}</p></div></article>) : <p className="empty-copy">No obvious problems found in the first pass.</p>}</div><div><h3>Suggested improvements</h3>{analysis.improvements.map((improvement) => <p className="improvement" key={improvement}>+ {improvement}</p>)}</div></div></div>}
-        {analysis && <div className="publish"><div><p className="eyebrow">READY TO SHIP?</p><h2>Push this project to GitHub</h2><p>RepoPilot will create a repository, commit the uploaded files, and push the main branch.</p></div><div className="publish-form"><input value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="repository-name" aria-label="GitHub repository name" /><button className="primary-button" type="button" disabled={!repositoryName.trim() || busy} onClick={publishProject}>{busy ? "Publishing…" : "Publish to GitHub"}<span>↗</span></button></div></div>}
+        {analysis && <div className="publish"><div><p className="eyebrow">READY TO SHIP?</p><h2>Push this project to GitHub</h2><p>Enter an existing repository URL, or leave it empty to create a new repository with your configured GitHub account.</p></div><div className="publish-form"><input value={repositoryUrl} onChange={(event) => setRepositoryUrl(event.target.value)} placeholder="https://github.com/owner/repository" aria-label="GitHub repository URL" /><input value={repositoryName} onChange={(event) => setRepositoryName(event.target.value)} placeholder="new-repository-name" aria-label="New GitHub repository name" /><button className="primary-button" type="button" disabled={(!repositoryName.trim() && !repositoryUrl.trim()) || busy} onClick={publishProject}>{busy ? "Publishing…" : "Publish to GitHub"}<span>↗</span></button></div></div>}
       </section>
       <p className="status-message">{message}</p><p className="privacy-note">Your ZIP is analyzed in this local workspace. Secrets such as `.env` files are excluded before publishing.</p>
     </main>
