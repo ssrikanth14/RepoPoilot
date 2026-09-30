@@ -27,12 +27,20 @@ export default function Home() {
   const [isScanning, setIsScanning] = useState(false);
   const [changeState, setChangeState] = useState("Needs review");
 
-  function submitPrompt(event: FormEvent<HTMLFormElement>) {
+  async function submitPrompt(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt) return;
-    setMessages((current) => [...current, { role: "user", content: trimmedPrompt, time: "now" }, { role: "agent", content: trimmedPrompt.toLowerCase().includes("bug") ? "I’ll trace that through the repository, run the available checks, and bring back a finding with evidence before proposing edits." : "I’ve queued that as an agent task. I’ll inspect the relevant files first, then show you the smallest useful next step.", time: "now" }]);
     setPrompt("");
+    setMessages((current) => [...current, { role: "user", content: trimmedPrompt, time: "now" }, { role: "agent", content: "Inspecting the workspace and choosing the next tool…", time: "now" }]);
+    try {
+      const result = await fetch("/api/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: trimmedPrompt }) });
+      const data = await result.json() as { summary?: string; steps?: string[]; evidence?: string[]; error?: string };
+      const response = data.error ? data.error : `${data.summary}\n\n${data.steps?.join(" → ")}\n\nEvidence: ${data.evidence?.join(" · ")}`;
+      setMessages((current) => [...current.slice(0, -1), { role: "agent", content: response, time: "now" }]);
+    } catch {
+      setMessages((current) => [...current.slice(0, -1), { role: "agent", content: "The local agent endpoint could not be reached. Check that the Next.js server is running.", time: "now" }]);
+    }
   }
 
   function runScan() {
