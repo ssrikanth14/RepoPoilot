@@ -20,7 +20,7 @@ async function collectFiles(directory: string, relativeDirectory = "", results: 
 
 function resolveFile(relativePath: string) {
   const normalized = path.normalize(relativePath);
-  const target = path.resolve(workspaceRoot, normalized);
+  const target = path.resolve(/*turbopackIgnore: true*/ workspaceRoot, normalized);
   if (!relativePath || path.isAbsolute(relativePath) || normalized.startsWith("..") || !target.startsWith(`${workspaceRoot}${path.sep}`)) throw new Error("File is outside the approved workspace");
   return target;
 }

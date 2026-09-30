@@ -13,7 +13,7 @@ function resolveWorkspacePath(relativePath: string) {
   if (!relativePath || path.isAbsolute(relativePath) || normalizedPath.startsWith("..") || blockedDirectories.has(firstDirectory)) {
     throw new Error("Change path is outside the approved workspace");
   }
-  const target = path.resolve(workspaceRoot, normalizedPath);
+  const target = path.resolve(/*turbopackIgnore: true*/ workspaceRoot, normalizedPath);
   if (!target.startsWith(`${workspaceRoot}${path.sep}`)) throw new Error("Change path is outside the approved workspace");
   return target;
 }

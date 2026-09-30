@@ -8,11 +8,13 @@ const execFileAsync = promisify(execFile);
 const workspaceRoot = process.cwd();
 const allowedChecks = new Set(["lint", "build", "test"]);
 
+export const runtime = "nodejs";
+
 type AgentRequest = { prompt?: string; check?: string };
 type AgentResponse = { summary: string; steps: string[]; evidence: string[]; status: "ready" | "needs-approval" | "failed"; model?: string };
 
 async function inspectWorkspace() {
-  const entries = await readdir(workspaceRoot, { withFileTypes: true });
+  const entries = await readdir(/*turbopackIgnore: true*/ workspaceRoot, { withFileTypes: true });
   const files = entries.filter((entry) => entry.isFile()).map((entry) => entry.name);
   const directories = entries.filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "node_modules").map((entry) => entry.name);
   let scripts: string[] = [];
@@ -79,10 +81,14 @@ export async function POST(request: Request) {
       response.evidence.push(`${wantsCheck}: ${result.passed ? "passed" : "failed"}`);
       if (result.output) response.evidence.push(result.output);
     }
-    const modelResult = await askModel(prompt, response.evidence);
-    if (modelResult) {
-      response.summary = modelResult.content;
-      response.model = modelResult.model;
+    try {
+      const modelResult = await askModel(prompt, response.evidence);
+      if (modelResult) {
+        response.summary = modelResult.content;
+        response.model = modelResult.model;
+      }
+    } catch (error) {
+      response.evidence.push(`Model unavailable: ${error instanceof Error ? error.message : "request failed"}`);
     }
     return NextResponse.json(response);
   } catch (error) {
