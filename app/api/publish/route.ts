@@ -7,7 +7,7 @@ import { projectDirectory } from "@/lib/projects";
 const execFileAsync = promisify(execFile);
 
 async function runGit(directory: string, args: string[], extraArgs: string[] = []) {
-  return execFileAsync("git", [...extraArgs, ...args], { cwd: directory, shell: process.platform === "win32", windowsHide: true, timeout: 60_000, maxBuffer: 200_000 });
+  return execFileAsync("git", [...extraArgs, ...args], { cwd: directory, windowsHide: true, timeout: 60_000, maxBuffer: 200_000 });
 }
 
 export async function POST(request: Request) {
