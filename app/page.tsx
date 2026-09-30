@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 type Repository = { name: string; branch: string; files: number };
 type Message = { role: "agent" | "user"; content: string; time: string };
@@ -27,6 +27,9 @@ export default function Home() {
   const [isScanning, setIsScanning] = useState(false);
   const [changeState, setChangeState] = useState("Needs review");
   const [gitNotice, setGitNotice] = useState("No Git action run yet.");
+  const [projectFiles, setProjectFiles] = useState<string[]>([]);
+  const [selectedFile, setSelectedFile] = useState("");
+  const [fileContent, setFileContent] = useState("");
 
   async function submitPrompt(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,6 +73,18 @@ export default function Home() {
     setGitNotice(data.error ?? `${data.repository ?? "Pull request"} ${data.url ?? "created"}`);
   }
 
+  useEffect(() => {
+    if (activeView !== "Code explorer" || projectFiles.length) return;
+    fetch("/api/project").then((result) => result.json()).then((data: { files?: string[] }) => setProjectFiles(data.files ?? [])).catch(() => setProjectFiles([]));
+  }, [activeView, projectFiles.length]);
+
+  async function inspectFile(filePath: string) {
+    setSelectedFile(filePath);
+    const result = await fetch("/api/project", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: filePath }) });
+    const data = await result.json() as { content?: string; error?: string };
+    setFileContent(data.content ?? data.error ?? "Unable to read file.");
+  }
+
   return (
     <main className="app-shell">
         <aside className="sidebar">
@@ -85,6 +100,7 @@ export default function Home() {
         <div className="content-scroll">
           <div className="page-heading"><div><p className="eyebrow">PROJECT OVERVIEW</p><h1>{activeView}</h1><p className="muted">Understand, improve, and ship with an agent that works alongside your code.</p></div><button className="scan-button" type="button" onClick={runScan}>{isScanning ? <><span className="spinner" />Scanning…</> : <>Run quality scan <span>→</span></>}</button></div>
           {activeView === "Git & GitHub" && <section className="git-console panel"><div><p className="eyebrow">VERSION CONTROL</p><h2>Ship with confidence</h2><p className="muted">Review the working tree, create a meaningful checkpoint, or publish the current branch.</p></div><div className="git-actions"><button type="button" onClick={() => runGitAction("status")}>Status</button><button type="button" onClick={() => runGitAction("diff")}>Diff summary</button><button type="button" onClick={() => runGitAction("commit")}>Approve commit</button><button type="button" onClick={() => runGitAction("push")}>Push to GitHub</button><button type="button" onClick={() => runGithubAction("create-repository")}>Create repository</button><button type="button" onClick={() => runGithubAction("pull-request")}>Open pull request</button></div><pre className="git-output">{gitNotice}</pre></section>}
+          {activeView === "Code explorer" && <section className="code-explorer panel"><div className="file-list"><div className="panel-heading"><div><p className="eyebrow">PROJECT FILES</p><h2>Workspace tree</h2></div><span className="file-count">{projectFiles.length}</span></div>{projectFiles.map((filePath) => <button key={filePath} className={`file-row ${selectedFile === filePath ? "selected" : ""}`} type="button" onClick={() => inspectFile(filePath)}><span>{filePath.split(".").pop()?.toUpperCase()}</span>{filePath}</button>)}</div><div className="source-view"><div className="source-header"><span>{selectedFile || "Select a file"}</span><span>{selectedFile ? "read-only" : ""}</span></div><pre>{fileContent || "Choose a source file from the workspace tree to inspect it here."}</pre></div></section>}
           <div className="stats-grid"><div className="stat-card score-card"><div className="stat-top"><span>PROJECT SCORE</span><span className="info">i</span></div><div className="score-row"><strong>72</strong><span>/100</span><div className="score-ring"><span>72</span></div></div><p><span className="trend">↗ 8%</span> since last analysis</p></div><div className="stat-card"><div className="stat-top"><span>FILES INDEXED</span><span className="stat-icon">⌗</span></div><strong className="big-stat">{selectedRepository.files}</strong><p className="muted">Across 6 directories</p></div><div className="stat-card"><div className="stat-top"><span>OPEN FINDINGS</span><span className="stat-icon warning">!</span></div><strong className="big-stat">04</strong><p className="muted"><span className="warning-text">2 medium</span> · 2 low priority</p></div><div className="stat-card"><div className="stat-top"><span>ACTIVE BRANCH</span><span className="stat-icon">⑂</span></div><strong className="branch-stat">{selectedRepository.branch}</strong><p className="muted">Synced just now</p></div></div>
           <div className="work-grid"><section className="panel activity-panel"><div className="panel-heading"><div><p className="eyebrow">AGENT ACTIVITY</p><h2>Analysis trail</h2></div><span className="live-badge"><i /> Live</span></div><div className="timeline">{activity.map(([icon, title, detail, status], index) => <div className={`timeline-item ${status}`} key={title}><span className="timeline-icon">{isScanning && index === 2 ? <span className="spinner dark" /> : icon}</span><div><strong>{isScanning && index === 2 ? "Running quality scan" : title}</strong><p>{isScanning && index === 2 ? "Checking lint, tests, and build scripts" : detail}</p></div><span className="timeline-time">{index === 0 ? "09:40" : index === 1 ? "09:41" : "now"}</span></div>)}</div><div className="next-action"><span className="action-icon">✦</span><div><strong>Next best action</strong><p>Run the quality scan to surface actionable findings.</p></div><button type="button" onClick={runScan}>Start <span>→</span></button></div></section>
             <section className="panel change-panel"><div className="panel-heading"><div><p className="eyebrow">PROPOSED CHANGE</p><h2>Agent plan</h2></div><span className={`status-pill ${changeState}`}>{changeState === "pending" ? "Needs review" : changeState}</span></div><div className="change-body"><div className="change-title"><span className="file-icon">TS</span><div><strong>Add runtime tool contract</strong><p>agent/tools/types.ts</p></div></div><p className="change-description">Define a typed boundary for repository inspection, checks, and file edits so every action can be reviewed before execution.</p><div className="diff-preview"><div><span className="removed">−</span><code>type Tool = unknown</code></div><div><span className="added">+</span><code>type Tool = RepositoryTool</code></div></div><div className="change-actions"><button className="reject-button" type="button" onClick={() => setChangeState("rejected")}>Reject</button><button className="approve-button" type="button" onClick={approveChange}>{changeState === "approved" ? "Approved" : "Approve change"} <span>→</span></button></div></div></section></div>
