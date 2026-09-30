@@ -2,7 +2,7 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { NextResponse } from "next/server";
-import { projectDirectory } from "@/lib/projects";
+import { findProjectRoot, projectDirectory } from "@/lib/projects";
 
 const execFileAsync = promisify(execFile);
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       if (!apiResponse.ok || !repository.clone_url) throw new Error(repository.message ?? "GitHub repository creation failed");
       repositoryUrl = repository.clone_url;
     }
-    const directory = projectDirectory(body.projectId);
+    const directory = await findProjectRoot(projectDirectory(body.projectId));
     await mkdir(directory, { recursive: true });
     await appendFile(`${directory}/.gitignore`, "\n.env\n.env.*\nnode_modules\n.next\ndist\nbuild\n", "utf8");
     await runGit(directory, ["init"]);

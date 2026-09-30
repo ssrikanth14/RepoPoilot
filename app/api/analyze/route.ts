@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { projectDirectory } from "@/lib/projects";
+import { findProjectRoot, projectDirectory } from "@/lib/projects";
 
 const execFileAsync = promisify(execFile);
 const sourceExtensions = new Set([".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".java", ".rb", ".php", ".css"]);
@@ -19,18 +19,6 @@ async function collectFiles(directory: string, relativeDirectory = "", result: s
     else if (sourceExtensions.has(path.extname(entry.name).toLowerCase())) result.push(relativePath);
   }
   return result;
-}
-
-async function findProjectRoot(directory: string, depth = 0): Promise<string> {
-  try {
-    await readFile(path.join(directory, "package.json"), "utf8");
-    return directory;
-  } catch {
-    if (depth >= 3) return directory;
-    const directories = (await readdir(directory, { withFileTypes: true })).filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !["node_modules", ".next"].includes(entry.name));
-    if (directories.length === 1) return findProjectRoot(path.join(directory, directories[0].name), depth + 1);
-    return directory;
-  }
 }
 
 export async function POST(request: Request) {
