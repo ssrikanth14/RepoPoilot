@@ -48,6 +48,9 @@ export async function POST(request: Request) {
     await runGit(directory, ["push", "-u", "origin", "main"], ["-c", `http.extraheader=AUTHORIZATION: basic ${auth}`]);
     return NextResponse.json({ repository: repositoryUrl, url: `https://github.com/${repositoryUrl.split("/").slice(-2).join("/").replace(/\.git$/, "")}` });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Project publish failed" }, { status: 400 });
+    const commandError = error as { stdout?: string; stderr?: string };
+    const details = `${commandError.stdout ?? ""}${commandError.stderr ?? ""}`.trim();
+    if (/403|permission to .* denied|authentication failed/i.test(details)) return NextResponse.json({ error: "GitHub rejected the push. Revoke the exposed token, create a replacement with write access to this repository, and try again." }, { status: 403 });
+    return NextResponse.json({ error: details || "Project publish failed" }, { status: 400 });
   }
 }
